@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>ユキダマッチ</title>
+<meta name="description" content="雪合戦の1対1。走って、すべって、よじ登って、雪玉をぶつけ合え。遮蔽はだんだん溶けていく。">
+<meta name="theme-color" content="#1d3557">
+<meta property="og:title" content="ユキダマッチ">
+<meta property="og:description" content="雪合戦の1対1。走って、すべって、よじ登って、雪玉をぶつけ合え">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=M+PLUS+Rounded+1c:wght@500;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="view"></div>
+
+<!-- タイトル -->
+<div class="screen active" id="s-title">
+  <div class="title-box">
+    <div class="tcol">
+      <div class="logo"><span class="l1">ユキ</span><span class="l2">ダマッチ</span></div>
+      <div class="sub">雪合戦 1対1 ・ 2本先取</div>
+      <div class="sel"><div class="lv-label">キャラ</div><div class="av-row" id="av-row"></div></div>
+      <div class="sel"><div class="lv-label">特技</div><div class="sk-row" id="sk-row"></div><div class="sk-desc" id="sk-desc"></div></div>
+    </div>
+    <div class="tcol">
+      <div class="lv-label">CPUとたたかう</div>
+      <div class="lv-row">
+        <button class="btn lv" data-lv="easy">かんたん</button>
+        <button class="btn lv hot" data-lv="normal">ふつう</button>
+        <button class="btn lv" data-lv="hard">むずかしい</button>
+      </div>
+      <div class="row2"><button class="btn on-btn" id="btn-online">あいことば対戦</button></div>
+      <div class="row2">
+        <button class="btn sm" id="btn-howto">あそびかた</button>
+        <button class="btn sm" id="btn-snd">音：<span id="snd-name">あり</span></button>
+      </div>
+      <label class="sens">視点の速さ <input type="range" id="in-sens" min="0.4" max="2.2" step="0.1" value="1"><b id="sens-v">1.0</b></label>
+      <div class="loading" id="loading">素材を読みこみ中… <b id="load-p">0%</b></div>
+    </div>
+  </div>
+</div>
+
+<!-- あいことば対戦 -->
+<div class="screen" id="s-online">
+  <div class="title-box">
+    <div class="card on-card">
+      <h2>あいことば対戦</h2>
+      <div id="on-form">
+        <p class="note">同じ「あいことば」を入れた人と1対1。3人目からは観戦になります。</p>
+        <label class="fld">なまえ<input id="in-name" maxlength="8" placeholder="8文字まで"></label>
+        <label class="fld">あいことば<input id="in-code" maxlength="20" placeholder="例：ゆきがっせん"></label>
+        <button class="btn hot" id="btn-join">入る</button>
+      </div>
+      <div id="on-wait" style="display:none">
+        <div class="vs"><span class="p0" id="on-n0">…</span><b>VS</b><span class="p1" id="on-n1">…</span></div>
+        <p class="note" id="on-st">相手を待っています…</p>
+        <p class="note small" id="on-w"></p>
+      </div>
+      <button class="btn" id="btn-on-back">もどる</button>
+    </div>
+  </div>
+</div>
+
+<!-- 試合中の表示 -->
+<div class="screen" id="s-game">
+  <div id="hud">
+    <div class="top">
+      <div class="pips" id="pips-me"></div>
+      <div class="tbox" id="tbox"><div class="rnd" id="h-round">ラウンド1</div><div class="tm" id="h-time">0</div></div>
+      <div class="pips" id="pips-foe"></div>
+    </div>
+    <div class="melt" id="h-melt"></div>
+    <div class="cross" id="cross"><i></i><div class="ammo" id="ammo"></div><div class="rl" id="rl"></div></div>
+    <div class="hitmark" id="hitmark"></div>
+    <div class="hurt" id="hurt"></div>
+    <div class="dir" id="dir"></div>
+    <div class="splat" id="splat"></div>
+    <div class="cold" id="cold"></div>
+    <div class="brk" id="brk"></div>
+    <div class="me">
+      <div class="bars"><div class="ar"><i id="b-ar"></i><span>もこもこ <em id="v-ar">75</em></span></div><div class="hp"><i id="b-hp"></i><span>体力 <em id="v-hp">150</em></span></div></div>
+      <div class="items"><span id="it-cocoa" class="it">☕<b id="n-cocoa">0</b></span><span id="it-kairo" class="it">🔥<b id="n-kairo">0</b></span><span id="it-ice" class="it ice">❄<b id="n-ice">0</b></span><span id="it-sk" class="it sk"><u id="sk-ic">💨</u><b id="sk-cd"></b></span></div>
+    </div>
+    <div class="healbar" id="healbar"><div class="hn" id="heal-name"></div><div class="hb"><i id="heal-p"></i></div></div>
+    <div id="foebars"></div>
+    <div class="names" id="names"></div>
+    <div class="rp-tag" id="rp-tag">▶ リプレイ <small>タップでとばす</small></div>
+    <div class="foeheal" id="foeheal"><span id="fh-ic">☕</span><b>回復中</b><div class="fhb"><i id="fh-p"></i></div></div>
+    <div id="pops"></div>
+    <div class="banner" id="banner"></div>
+    <div class="msg" id="msg"></div>
+    <div class="keys" id="keys">WASD 移動 ／ マウス 視点 ／ 左クリック 投げる ／ Space ジャンプ（かべに向かって押しっぱなしで よじ登る）／ Shift スライディング ／ Q 特技 ／ E 回復 ／ R にぎる ／ Esc 一時停止</div>
+    <button class="pause-btn" id="btn-pause">Ⅱ</button>
+  </div>
+  <div id="touch">
+    <div id="stick-base"><div id="stick-knob"></div></div>
+    <button class="tb" id="b-heal">回復</button>
+    <button class="tb" id="b-skill"><span id="tsk-ic">💨</span><i id="tsk-cd"></i></button>
+    <button class="tb" id="b-slide">すべる</button>
+    <button class="tb" id="b-jump">ジャンプ</button>
+    <button class="tb big" id="b-fire">投げる</button>
+  </div>
+</div>
+
+<!-- 一時停止 -->
+<div class="overlay" id="ov-pause"><div class="card">
+  <h2>一時停止</h2>
+  <button class="btn hot" id="btn-resume">つづける</button>
+  <button class="btn" id="btn-quit">タイトルへ</button>
+</div></div>
+
+<!-- 結果 -->
+<div class="overlay" id="ov-result"><div class="card">
+  <div class="res-title" id="res-title">かち！</div>
+  <div class="res-sc" id="res-sc">2 - 0</div>
+  <div class="res-st" id="res-st"></div>
+  <button class="btn hot" id="btn-again">もう一回</button>
+  <p class="note small" id="res-wait"></p>
+  <button class="btn" id="btn-title">タイトルへ</button>
+</div></div>
+
+<!-- あそびかた -->
+<div class="overlay" id="ov-howto"><div class="card howto">
+  <h2>あそびかた</h2>
+  <ul>
+    <li><b>勝ち方</b>：雪玉を当てて（12発くらい）、相手を<b>雪だるま</b>にしたら1本。2本先取で勝ち。</li>
+    <li><b>もこもこ</b>（青いゲージ）が先に減って、なくなると「パリン！」。そこから体力（白いゲージ）が減ります。</li>
+    <li><b>雪玉</b>：手に6こ。なくなると自動で「にぎる」（すきができる）。少し投げずにいると、自動でにぎり直します。</li>
+    <li><b>特技</b>（試合の前に1つえらぶ。使うと少し待つ）：🧱ゆきかべ＝目の前にかべ　⛄にせ雪だるま＝自分そっくりのおとりが走る（2発で割れる）　🌫雪けむり＝けむりの向こうが見えない　💨ダッシュ＝一気にとびこむ</li>
+    <li><b>ステージ</b>：雪の公園・雪山（高台と階段）・雪の路地（細い道）。ラウンドごとに変わります。</li>
+    <li><b>かべは溶ける</b>：青く光ってふるえたら、もうすぐ溶けます。時間がたつほど隠れる場所がなくなります。90秒をすぎると<b>寒さ</b>で少しずつ削れます。</li>
+    <li><b>アイテム</b>：光の柱が出たら、そこにわきます。<br>☕ココア＝体力回復　🔥カイロ＝もこもこ回復（それぞれ2こまで持てる。回復ボタンで使う。使っている間はおそいけど、受ける雪は2割へる。相手が回復中だと☕🔥マークが出る＝チャンス）<br>❄氷玉＝6発だけ、速くて痛い</li>
+    <li><b>動き</b>：走りながらスライディングで加速。すべりながらジャンプすると勢いが残ります。かべに向かってジャンプすると<b>よじ登れます</b>。青い丸はジャンプ台。</li>
+    <li><b>ねらい</b>：相手の近くをねらえば、少しだけ吸いつきます（スマホは強め）。</li>
+    <li><b>PC</b>：WASD・マウス・左クリック・Space・Shift・Q（特技）・E（回復）・R（にぎる）。<br><b>スマホ</b>：左で移動、右をなぞって視点、ボタンで投げる（投げるボタンをなぞっても視点が動く）。横向きがおすすめ。<br><b>コントローラー</b>：左右スティック・右トリガー投げる・A ジャンプ・B すべる・X にぎる・Y 回復・LB 特技。</li>
+    <li><b>あいことば対戦</b>：同じあいことばで1対1。3人目からは観戦。</li>
+    <li class="credit">素材：キャラ・小物・効果音 Kenney（kenney.nl, CC0）／雪の質感 Poly Haven（CC0）／BGM・ゲーム なすびのお庭</li>
+  </ul>
+  <button class="btn hot" id="btn-howto-close">とじる</button>
+</div></div>
+
+<div class="rotate" id="rotate">📱↻ 横向きにすると遊びやすいよ</div>
+
+<script src="lib/three.min.js"></script>
+<script src="lib/gltf.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/map.js"></script>
+<script src="js/sim.js"></script>
+<script src="js/cpu.js"></script>
+<script src="js/assets.js"></script>
+<script src="js/render.js"></script>
+<script src="js/sound.js"></script>
+<script src="js/input.js"></script>
+<script src="js/online.js"></script>
+<script src="js/firebase-config.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
