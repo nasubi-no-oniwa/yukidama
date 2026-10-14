@@ -51,7 +51,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .sens input { width: 140px; accent-color: var(--cta); }
 
 /* HUD */
-#hud { position: fixed; inset: 0; pointer-events: none; }
+#hud { position: fixed; inset: 0; pointer-events: none; z-index: 2; }  /* 一時停止ボタンがタッチ操作の面より上に来るように */
 #hud .top { position: absolute; top: max(8px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 12px; }
 .pips { display: flex; gap: 6px; }
 .pips i { width: 16px; height: 16px; border-radius: 50%; border: 3px solid #fff; background: rgba(29,53,87,.35); box-shadow: 0 2px 4px rgba(0,0,0,.25); }
@@ -138,7 +138,7 @@ body.replay::after { content: ''; position: fixed; inset: 0; pointer-events: non
 .pause-btn { position: absolute; right: max(12px, env(safe-area-inset-right)); top: max(10px, env(safe-area-inset-top)); width: 44px; height: 44px; border-radius: 50%; border: 0; background: rgba(29,53,87,.55); color: #fff; font-size: 16px; pointer-events: auto; }
 
 /* タッチ */
-#touch { position: fixed; inset: 0; display: none; }
+#touch { position: fixed; inset: 0; display: none; z-index: 1; }
 body.touch #touch { display: block; }
 body.touch .keys { display: none; }
 #stick-base { position: absolute; width: 112px; height: 112px; margin: -56px 0 0 -56px; border-radius: 50%; background: rgba(255,255,255,.18); border: 3px solid rgba(255,255,255,.6); opacity: 0; left: 22%; top: 70%; }
