@@ -171,7 +171,7 @@
       this.el = el; const lo = matchMedia('(pointer: coarse)').matches;
       this.lo = lo;
       const r = this.r = window.__fakeGL ? { domElement: document.createElement('canvas'), setPixelRatio() {}, setSize() {}, render() {}, shadowMap: {} } : new THREE.WebGLRenderer({ antialias: !lo, powerPreference: 'high-performance' });   // __fakeGL はテスト用
-      r.setPixelRatio(Math.min(window.devicePixelRatio || 1, lo ? 1.5 : 2)); r.shadowMap.enabled = true; r.shadowMap.type = THREE.PCFSoftShadowMap;
+      r.setPixelRatio(Math.min(window.devicePixelRatio || 1, lo ? 1.5 : 2)); r.shadowMap.enabled = true; r.shadowMap.type = (lo || window.__pvFast) ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;   // スマホは軽い影
       r.outputColorSpace = THREE.SRGBColorSpace; r.toneMapping = THREE.ACESFilmicToneMapping; r.toneMappingExposure = 1.05;
       el.appendChild(r.domElement);
       const S = this.scene = new THREE.Scene(); S.background = new THREE.Color('#b9d6f0'); S.fog = new THREE.Fog('#c9e0f4', 30, 95);
@@ -443,13 +443,13 @@
       let px, py, pz, yaw, pitch;
       if (v.cine) { // リプレイ：決めた位置から
         const c = v.cine; this.camPos.lerp(new THREE.Vector3(c.from.x, c.from.y, c.from.z), Math.min(1, dt * 4 + (this.cineSnap ? 1 : 0))); this.cineSnap = false;
-        cam.position.copy(this.camPos); cam.lookAt(c.at.x, c.at.y, c.at.z); this.chars.forEach(ch => { ch.root.visible = true; }); return;
+        cam.position.copy(this.camPos); cam.lookAt(c.at.x, c.at.y, c.at.z); cam.updateMatrixWorld(); this.chars.forEach(ch => { ch.root.visible = true; }); return;
       }
       if (v.free) { // 観戦：ふたりの間を少し上から
         const a = w.players[0], b = w.players[1], mx = (a.x + b.x) / 2, mz = (a.z + b.z) / 2, d = Math.hypot(a.x - b.x, a.z - b.z);
         this.oy = (this.oy || 0) + dt * 0.12; const R = 10 + d * 0.6;
         const tp = new THREE.Vector3(mx + Math.sin(this.oy) * R, 7 + d * 0.35, mz + Math.cos(this.oy) * R);
-        this.camPos.lerp(tp, Math.min(1, dt * 2)); cam.position.copy(this.camPos); cam.lookAt(mx, 1, mz); return;
+        this.camPos.lerp(tp, Math.min(1, dt * 2)); cam.position.copy(this.camPos); cam.lookAt(mx, 1, mz); cam.updateMatrixWorld(); return;
       }
       const p = v.me; yaw = v.yaw; pitch = v.pitch;
       const slide = p.slide > 0 || (v.states && v.states[p.slot] && v.states[p.slot].sl);
@@ -466,7 +466,7 @@
       const sh = this.shake * this.shake * 0.25;
       cam.position.set(cx + (Math.random() - 0.5) * sh, cy + (Math.random() - 0.5) * sh, cz + (Math.random() - 0.5) * sh);
       cam.lookAt(cam.position.x + fx, cam.position.y + fy, cam.position.z + fz);
-      this.camPos.copy(cam.position); this.camFwd.set(fx, fy, fz);
+      cam.updateMatrixWorld(); this.camPos.copy(cam.position); this.camFwd.set(fx, fy, fz);
       // 近すぎたら自分を消す
       const near = Math.hypot(cx - px, cy - py, cz - pz); this.chars[p.slot].root.visible = near > 2.0 || v.dead;
       // 速いときは少し広角

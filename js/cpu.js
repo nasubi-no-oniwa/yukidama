@@ -146,6 +146,8 @@
       }
       // 回復：見られていない時に始める（かんたんは気にしない）。ふつう以上は、近くで見つかったらやめて戦う
       const safe = !see || this.level === 'easy' || dist > 18;
+      const stillNeed = (me.hp < C.HP - 20 && me.bag.cocoa > 0) || (me.ar < C.ARMOR - 15 && me.bag.kairo > 0);
+      if (this.mode === 'heal' && !stillNeed) { this.mode = 'hunt'; this.think = 0; }
       if (this.mode === 'heal' && (!this.path || !see)) { mvx *= 0.3; mvz *= 0.3; if (!me.heal && safe) this.heal = true; }
       if (me.heal && see && this.level !== 'easy' && dist < 11 && me.heal.T - me.heal.t > 0.8) { this.heal = true; this.mode = 'fight'; this.think = 0; }
       if (this.mode === 'pick' && foe.alive && see) { /* 拾いながら投げる */ }

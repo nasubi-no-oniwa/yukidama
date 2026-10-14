@@ -11,7 +11,9 @@
   YD._debug = { R };
   YD.KO_WAIT = 7000;
   const LVN = { easy: 'かんたん', normal: 'ふつう', hard: 'むずかしい' };
-  const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  // 試合の進行用の乱数（3D表示が使う乱数とは別にしておく）
+  const RND = YD.rng((Math.random() * 1e9) | 0);
+  const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(RND() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 
   // ---------- 特技えらび ----------
   let mySkill = ls.get('yd_skill', 'dash'); if (!C.SKILLS[mySkill]) mySkill = 'dash';
@@ -34,7 +36,7 @@
   YD.onAssetProg = p => { $('load-p').textContent = Math.round(p * 100) + '%'; };
   const assetsP = YD.loadAssets().then(() => { R.useAssets(); R.setAvatars([myAv, otherAv(myAv)]); idle = null; $('loading').classList.add('done'); lvBtns.forEach(b => { b.disabled = false; }); });
   setTimeout(() => { lvBtns.forEach(b => { b.disabled = false; }); $('loading').classList.add('done'); }, 15000);
-  function otherAv(a) { const L = YD.AV.filter(k => k !== a); return L[(Math.random() * L.length) | 0]; }
+  function otherAv(a) { const L = YD.AV.filter(k => k !== a); return L[(RND() * L.length) | 0]; }
   // 最初にさわったら音を出せるようにして、タイトルの曲
   const firstTouch = () => { YD.audio(); if (!G) YD.bgm.start('title'); removeEventListener('pointerdown', firstTouch); removeEventListener('keydown', firstTouch); };
   addEventListener('pointerdown', firstTouch); addEventListener('keydown', firstTouch);
@@ -47,7 +49,7 @@
   function enterGame() { show('s-game'); document.body.classList.add('playing'); In.active = G.me >= 0; In.clear(); YD.audio(); YD.bgm.start('bgm'); R.setAvatars(G.avs || [myAv, otherAv(myAv)]); ['ov-result', 'ov-pause'].forEach(id => $(id).classList.remove('show')); idle = null; }
   function startCpu(lv) {
     G = { mode: 'cpu', lv, me: 0, sc: [0, 0], round: 0, stats: { hit: 0, dmg: 0, taken: 0 }, thAll: 0, paused: false, stOrder: shuffle(YD.STAGE_KEYS), cpuSkill: shuffle(Object.keys(C.SKILLS))[0], names: ['あなた', 'CPU（' + LVN[lv] + '）'], avs: [myAv, otherAv(myAv)] };
-    enterGame(); newRound({ seed: (Math.random() * 1e9) | 0, st: G.stOrder[0], round: 1 });
+    enterGame(); newRound({ seed: (RND() * 1e9) | 0, st: G.stOrder[0], round: 1 });
     lockPointer();
   }
   function newRound(o) {
@@ -76,7 +78,8 @@
   function banner(t, sub, ms = 1300) { const b = $('banner'); b.innerHTML = esc(t) + (sub ? `<small>${esc(sub)}</small>` : ''); b.classList.remove('show'); void b.offsetWidth; b.classList.add('show'); clearTimeout(banTm); banTm = setTimeout(() => b.classList.remove('show'), ms); }
   function msg(t) { const m = $('msg'); m.textContent = t; m.classList.add('show'); clearTimeout(msgTm); msgTm = setTimeout(() => m.classList.remove('show'), 1700); }
   YD.toast = msg;
-  function pop(x, y, z, text, cls) { const p = R.project(x, y, z); if (!p.on) return; const el = document.createElement('div'); el.className = 'pop ' + (cls || ''); el.textContent = text; el.style.left = p.x + (Math.random() - 0.5) * 30 + 'px'; el.style.top = p.y + 'px'; $('pops').appendChild(el); setTimeout(() => el.remove(), 800); }
+  let popN = 0;
+  function pop(x, y, z, text, cls) { const p = R.project(x, y, z); if (!p.on) return; const el = document.createElement('div'); el.className = 'pop ' + (cls || ''); el.textContent = text; el.style.left = p.x + ((popN++ % 5) - 2) * 7 + 'px'; el.style.top = p.y + 'px'; $('pops').appendChild(el); setTimeout(() => el.remove(), 800); }
   function flash(id, ms) { const e = $(id); if (!e) return; e.style.transition = 'none'; e.style.opacity = 1; void e.offsetWidth; e.style.transition = ''; setTimeout(() => { e.style.opacity = 0; }, ms || 60); }
   function hitmark(ar) { const h = $('hitmark'); h.classList.toggle('ar', !!ar); h.classList.remove('show'); void h.offsetWidth; h.classList.add('show'); }
   const ammoEl = $('ammo'); ammoEl.innerHTML = Array.from({ length: C.MAG }, (_, i) => { const a = -Math.PI / 2 + (i - (C.MAG - 1) / 2) * 0.32 + Math.PI; return `<b style="transform:translate(${Math.cos(a) * 24}px,${Math.sin(a) * 24}px)"></b>`; }).join('');
@@ -133,7 +136,7 @@
       I = { mx: playing ? raw.mx : 0, mz: playing ? raw.mz : 0, yaw: G.yaw, pitch: G.pitch, fire: raw.fire && playing, firePress: raw.firePress, jump: raw.jump && playing, jumpHeld: raw.jumpHeld, slide: raw.slide && playing, heal: raw.heal && playing, reload: raw.reload, skill: raw.skill && playing, aim: A.pt };
       if (raw.firePress && me.alive && playing && me.mag <= 0 && me.ice <= 0 && me.reload > 0) S.empty();
       if (raw.skill && playing && me.cd > 0) { S.no(); msg('特技はあと ' + Math.ceil(me.cd) + ' 秒'); }
-      if (YD._debug.auto) { if (!G.cpu0 || G.cpu0.w0 !== w) { G.cpu0 = new YD.Cpu(G.me, YD._debug.auto, 11 + G.me); G.cpu0.w0 = w; } I = G.cpu0.input(w, dt); if (G.phase !== 'play') { I.fire = false; I.mx = I.mz = 0; I.skill = false; } G.yaw = I.yaw; G.pitch = I.pitch; }
+      if (YD._debug.auto) { if (!G.cpu0 || G.cpu0.w0 !== w) { G.cpu0 = new YD.Cpu(G.me, YD._debug.auto, 11 + G.me); G.cpu0.w0 = w; } I = G.cpu0.input(w, dt); if (G.phase !== 'play') { I.fire = false; I.mx = I.mz = 0; I.skill = false; } if (YD._debug.smooth) { let d = I.yaw - G.yaw; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; G.yaw += d * Math.min(1, rdt * YD._debug.smooth); G.pitch += (I.pitch * 0.5 - 0.06 - G.pitch) * Math.min(1, rdt * 4); } else { G.yaw = I.yaw; G.pitch = I.pitch; } }
     }
     const ins = [null, null];
     if (me) ins[G.me] = I;
@@ -162,7 +165,7 @@
   function view() { const w = G.w, me = G.me >= 0 ? w.players[G.me] : null; return me ? { me, yaw: G.yaw, pitch: G.pitch, dead: !me.alive } : { free: true }; }
   function idleFrame(dt) {
     // タイトルの後ろ：CPUどうしが遊んでいる
-    if (!idle) { const st = YD.STAGE_KEYS[(Math.random() * 3) | 0]; idle = { av1: (R.avs && R.avs[1]) || otherAv(myAv), w: new YD.World((Math.random() * 1e6) | 0, [true, true], st), c: [new YD.Cpu(0, 'normal', 3), new YD.Cpu(1, 'normal', 4)] }; idle.w.t = 0; idle.w.players[0].skill = 'decoy'; idle.w.players[1].skill = 'wall'; R.setAvatars([myAv, idle.av1]); R.build(idle.w); }
+    if (!idle) { const st = YD.STAGE_KEYS[(RND() * 3) | 0]; idle = { av1: (R.avs && R.avs[1]) || otherAv(myAv), w: new YD.World((RND() * 1e6) | 0, [true, true], st), c: [new YD.Cpu(0, 'normal', 3), new YD.Cpu(1, 'normal', 4)] }; idle.w.t = 0; idle.w.players[0].skill = 'decoy'; idle.w.players[1].skill = 'wall'; R.setAvatars([myAv, idle.av1]); R.build(idle.w); }
     const w = idle.w; w.update(dt, [idle.c[0].input(w, dt), idle.c[1].input(w, dt)]); w.t += dt; w.fx.length = 0;
     if (w.over || w.t > 70) { idle = null; return; }
     R.frame(w, { free: true }, dt);
@@ -216,7 +219,7 @@
   function endReplay() {
     if (!G) return;
     G.rp = null; R.clearReplayBalls(); document.body.classList.remove('replay'); $('rp-tag').classList.remove('show');
-    if (G.mode === 'cpu') { const g = G; setTimeout(() => { if (G !== g) return; if (Math.max(G.sc[0], G.sc[1]) >= C.WIN) result(); else newRound({ seed: (Math.random() * 1e9) | 0, st: G.stOrder[G.round % G.stOrder.length], round: G.round + 1 }); }, 450); }
+    if (G.mode === 'cpu') { const g = G; setTimeout(() => { if (G !== g) return; if (Math.max(G.sc[0], G.sc[1]) >= C.WIN) result(); else newRound({ seed: (RND() * 1e9) | 0, st: G.stOrder[G.round % G.stOrder.length], round: G.round + 1 }); }, 450); }
     else if (G.resultPending) { const r = G.resultPending; G.resultPending = null; result(r); }
     else if (G.mode === 'net') banner('つぎのラウンドへ', '', 1200);
   }
@@ -239,6 +242,7 @@
   // ---------- 起きたこと ----------
   function events(w) {
     const meS = G.me, me = meS >= 0 ? w.players[meS] : null;
+    if (YD._debug.evlog) for (const e of w.fx) YD._debug.evlog.push(e.k + ':' + (e.s ?? '') + ':' + (e.kind || '') + (e.broke ? ':broke' : '') + (e.by != null ? ':by' + e.by : '') + (e.pop ? ':pop' : ''));
     for (const e of w.fx) {
       const mine = e.s === meS;
       switch (e.k) {
