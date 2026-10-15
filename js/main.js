@@ -31,8 +31,23 @@
     const row = $('av-row'), on = row.querySelector('.on'); if (on) requestAnimationFrame(() => { row.scrollLeft = Math.max(0, on.offsetLeft - row.clientWidth / 2 + on.offsetWidth / 2); });
   }
   avUI();
+  // ---------- だれかと対戦（ランダム対戦） ----------
+  QM.setup({
+    game: 'yukidama', ver: 'v1', name: 'ユキダマッチ',
+    getDb, anchor: '#btn-online', anchorUp: 1, wrapClass: 'row2', anchorWhere: 'before', btnClass: 'btn on-btn', nextClass: 'btn', nameKey: 'yd_name',
+    join: (code, name) => {
+      // ランダム対戦のあいことばで、いつものあいことばを上書きしないようにもどす
+      const keep = ls.get('yd_code', '');
+      $('in-name').value = name; $('in-code').value = code; $('btn-join').click();
+      setTimeout(() => { ls.set('yd_code', keep); $('in-code').value = keep; }, 60);
+    },
+    cpu: () => document.querySelector('.lv[data-lv="normal"]').click(), cpuLabel: 'CPU（ふつう）と遊びながら待つ',
+    quit: () => toTitle(),
+    colors: { main: 'var(--cta)', alt: 'var(--blue)', bg: '#f7fbff', fg: 'var(--ink)' },
+  });
+  QM.resultSlot('#ov-result .card', '#btn-title');
   // 素材の読みこみ
-  const lvBtns = [...document.querySelectorAll('.lv'), $('btn-online')]; lvBtns.forEach(b => { b.disabled = true; });
+  const lvBtns = [...document.querySelectorAll('.lv'), $('btn-online'), $('qm-btn')]; lvBtns.forEach(b => { b.disabled = true; });
   YD.onAssetProg = p => { $('load-p').textContent = Math.round(p * 100) + '%'; };
   const assetsP = YD.loadAssets().then(() => { R.useAssets(); R.setAvatars([myAv, otherAv(myAv)]); idle = null; $('loading').classList.add('done'); lvBtns.forEach(b => { b.disabled = false; }); });
   setTimeout(() => { lvBtns.forEach(b => { b.disabled = false; }); $('loading').classList.add('done'); }, 15000);
@@ -414,6 +429,7 @@
     onRound(info) {
       if (!G || G.mode !== 'net' || G.m !== info.m) {
         G = { mode: 'net', me: info.watching ? -1 : info.slot, m: info.m, sc: [0, 0], round: 0, stats: { hit: 0, dmg: 0, taken: 0 }, thAll: 0, names: G0.names.slice(), avs: info.avs || ['male-a', 'female-b'] };
+        QM.started({ code: room && room.code, watch: !!info.watching });
         enterGame(); lockPointer();
       }
       G.sc = info.sc; G.startAt = info.startAt; if (info.avs) { G.avs = info.avs; R.setAvatars(G.avs); }
@@ -442,6 +458,16 @@
       if (G.rp || (G.phase === 'ko' && !G.rpDone)) G.resultPending = o; else result(o);
     },
     onLeft() {
+      // ランダム対戦：相手が抜けたら、残った人の勝ち
+      if (QM.isRandom() && room && room.slot >= 0) {
+        if (G && G.mode === 'net' && G.phase !== 'over') {
+          G.phase = 'over'; In.active = false; In.unlock(); YD.bgm.stop(); $('ov-pause').classList.remove('show');
+          S.win(); $('res-title').textContent = 'かち！'; $('res-title').className = 'res-title win';
+          $('res-sc').textContent = G.sc[0] + ' - ' + G.sc[1]; $('res-st').textContent = '相手が抜けたので、あなたの勝ち！';
+          $('btn-again').style.display = 'none'; $('res-wait').textContent = ''; $('ov-result').classList.add('show');
+        } else { $('res-wait').textContent = '相手が部屋から出ました'; $('btn-again').style.display = 'none'; }
+        return;
+      }
       msg(G && G.me < 0 ? 'プレイヤーが部屋から出ました' : '相手が部屋から出ました');
       if (G && G.mode === 'net') { G = null; document.body.classList.remove('playing', 'replay', 'watch'); ['ov-result', 'ov-pause'].forEach(id => $(id).classList.remove('show')); In.active = false; In.unlock(); YD.bgm.stop(); show('s-online'); $('on-form').style.display = 'none'; $('on-wait').style.display = ''; }
       if (room && room.slot >= 0) room.rematch();
@@ -471,7 +497,7 @@
     } catch (e) { msg(e.message || '入れませんでした'); room = null; }
     $('btn-join').disabled = false;
   };
-  $('btn-on-back').onclick = () => { if (room) { room.leave(); room = null; } show('s-title'); };
+  $('btn-on-back').onclick = () => { QM.ended(); if (room) { room.leave(); room = null; } show('s-title'); };
 
   // ---------- ボタン ----------
   document.querySelectorAll('.lv').forEach(b => b.onclick = () => { S.ui(); if (room) { room.leave(); room = null; } startCpu(b.dataset.lv); });
@@ -491,7 +517,7 @@
   $('btn-pause').onclick = () => pause(true);
   $('btn-resume').onclick = () => pause(false);
   In.onLock = locked => { if (!locked && G && !G.paused && G.phase !== 'over' && !G.rp && In.kind === 'mouse' && G.me >= 0) pause(true); };
-  function toTitle() { if (room) { room.leave(); room = null; } G = null; In.active = false; In.unlock(); YD.bgm.start('title'); document.body.classList.remove('playing', 'replay', 'watch'); ['ov-pause', 'ov-result'].forEach(id => $(id).classList.remove('show')); idle = null; show('s-title'); }
+  function toTitle() { QM.ended(); if (room) { room.leave(); room = null; } G = null; In.active = false; In.unlock(); YD.bgm.start('title'); document.body.classList.remove('playing', 'replay', 'watch'); ['ov-pause', 'ov-result'].forEach(id => $(id).classList.remove('show')); idle = null; show('s-title'); }
   $('btn-quit').onclick = toTitle; $('btn-title').onclick = toTitle;
   $('btn-again').onclick = () => {
     if (G && G.mode === 'net' && room) { room.rematch(); $('res-wait').textContent = '相手を待っています…'; $('btn-again').style.display = 'none'; return; }

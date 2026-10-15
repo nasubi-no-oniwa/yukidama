@@ -19,7 +19,7 @@
   class Room {
     constructor(db, code, name, cb, av) {
       this.av = YD.AV && YD.AV.includes(av) ? av : 'male-a';
-      this.db = db; this.code = clean(code); this.name = (String(name || '').trim().slice(0, 8)) || 'ななし'; this.cb = cb || {};
+      this.db = db; this.code = clean(code); this.name = (window.QM ? QM.ng(name) : String(name || '').trim().slice(0, 8)) || 'ななし'; this.cb = cb || {};
       this.id = uid(); this.slot = -1; this.watching = false; this.players = {}; this.ready = {}; this.game = null; this.subs = []; this.rs = []; this.offset = 0; this.left = false;
       this.root = db.ref('yukidama/' + this.code);
     }
@@ -59,7 +59,7 @@
       if (this.slot >= 0) await this.root.child('ready/' + this.slot).set(this.joinM);
       return { slot: this.slot, code: this.code, watching: this.watching };
     }
-    people() { return { names: [0, 1].map(s => (this.players[s] ? this.players[s].name : null)), avs: [0, 1].map(s => (this.players[s] && this.players[s].av) || (s ? 'female-b' : 'male-a')), slot: this.slot, watching: this.watching }; }
+    people() { return { names: [0, 1].map(s => (this.players[s] ? (window.QM ? QM.ng(this.players[s].name) : this.players[s].name) : null)), avs: [0, 1].map(s => (this.players[s] && this.players[s].av) || (s ? 'female-b' : 'male-a')), slot: this.slot, watching: this.watching }; }
     tryStart() {
       if (this.slot !== 0 || this.left || !this.joinM) return;
       const r = this.ready || {}, next = (this.game && this.game.m ? this.game.m : 0) + 1;

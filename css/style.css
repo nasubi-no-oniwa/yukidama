@@ -176,3 +176,4 @@ body:not(.touch) .me { bottom: max(36px, env(safe-area-inset-bottom)); }
 @media (max-aspect-ratio: 1/1) { .logo { font-size: clamp(36px, 11vw, 72px); } }
 html, body { overscroll-behavior: none; }
 #s-title { overflow: hidden; }
+.qm-cnt { color: #1d3557; text-shadow: 0 1px 2px #fff, 0 0 6px #fff; }

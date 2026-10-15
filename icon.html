@@ -1,0 +1,29 @@
+<!doctype html><html><body style="margin:0;background:#000">
+<script src="lib/three.min.js"></script><script src="lib/gltf.min.js"></script><script src="js/config.js"></script><script src="js/assets.js"></script>
+<script>
+// アイコン用の1枚（ブラウザで開くと 512×512 の絵が出る）
+const S = 512, r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); r.setSize(S, S); r.setPixelRatio(1);
+r.outputColorSpace = THREE.SRGBColorSpace; r.toneMapping = THREE.ACESFilmicToneMapping; r.shadowMap.enabled = true; document.body.appendChild(r.domElement);
+const sc = new THREE.Scene();
+const bg = document.createElement('canvas'); bg.width = bg.height = 256; const x = bg.getContext('2d'); const gr = x.createLinearGradient(0, 0, 0, 256); gr.addColorStop(0, '#6fb3ff'); gr.addColorStop(1, '#d6ecff'); x.fillStyle = gr; x.fillRect(0, 0, 256, 256);
+const bt = new THREE.CanvasTexture(bg); bt.colorSpace = THREE.SRGBColorSpace; sc.background = bt;
+sc.add(new THREE.HemisphereLight('#e6f3ff', '#8aa0c0', 1.6)); const sun = new THREE.DirectionalLight('#fff4e0', 2.4); sun.position.set(-3, 6, 5); sun.castShadow = true; sc.add(sun);
+const cam = new THREE.PerspectiveCamera(34, 1, 0.1, 100); cam.position.set(0.15, 1.05, 4.3); cam.lookAt(0.15, 0.78, 0);
+YD.loadAssets().then(A => {
+  const g = new THREE.Mesh(new THREE.CircleGeometry(6, 48).rotateX(-Math.PI / 2), new THREE.MeshLambertMaterial({ color: '#f6faff' })); g.receiveShadow = true; sc.add(g);
+  if (A.tex.snow) { A.tex.snow.wrapS = A.tex.snow.wrapT = THREE.RepeatWrapping; A.tex.snow.repeat.set(4, 4); A.tex.snow.colorSpace = THREE.SRGBColorSpace; g.material.map = A.tex.snow; g.material.needsUpdate = true; }
+  const T = A.chars['female-b'], m = YD.SkeletonUtils.clone(T.scene); m.scale.setScalar(1.45); m.rotation.y = 0.75; m.position.set(-0.5, 0, 0.2); sc.add(m);
+  m.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  const mx = new THREE.AnimationMixer(m); mx.clipAction(T.clips['attack-melee-right']).play(); mx.setTime(0.17);
+  // マフラー
+  let torso; m.traverse(o => { if (o.name === 'torso') torso = o; });
+  const sf = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.03, 8, 22), new THREE.MeshLambertMaterial({ color: '#ff5a4f' })); sf.rotation.x = Math.PI / 2; sf.position.y = 0.16; torso.add(sf);
+  // 雪玉
+  const ball = new THREE.Mesh(new THREE.SphereGeometry(0.22, 32, 24), new THREE.MeshLambertMaterial({ color: '#ffffff', emissive: '#556070', emissiveIntensity: 0.15 })); ball.position.set(0.78, 1.32, 0.3); ball.castShadow = true; sc.add(ball);
+  for (let i = 0; i < 14; i++) { const p = new THREE.Mesh(new THREE.SphereGeometry(0.03 + Math.random() * 0.03, 8, 6), ball.material); const a = Math.random() * 6.28; const u = Math.random(); p.position.set(0.78 - 0.25 - u * 0.6, 1.32 - u * 0.2 + Math.sin(a) * 0.12 * (1 - u), 0.3 + Math.cos(a) * 0.1); sc.add(p); }
+  const tree = YD.decor('tree-snow-a', 1.3); if (tree) { tree.position.set(1.7, 0, -3.2); sc.add(tree); }
+  const tree2 = YD.decor('tree-snow-b', 1.1); if (tree2) { tree2.position.set(-1.9, 0, -3.6); sc.add(tree2); }
+  const sm = YD.decor('snowman', 0.7); if (sm) { sm.position.set(0.55, 0, -1.4); sm.rotation.y = 0.5; sc.add(sm); }
+  r.render(sc, cam); window.done = 1;
+});
+</script></body></html>
