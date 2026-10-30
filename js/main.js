@@ -2,6 +2,7 @@
 //  ユキダマッチ  画面と試合の進行（CPU戦・あいことば対戦・観戦）
 // =============================================
 (function () {
+  const T = I18N.t;
   const C = YD.C, $ = id => document.getElementById(id), In = YD.In, S = YD.S;
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const ls = { get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : v; } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
@@ -10,7 +11,7 @@
   const R = new YD.Render($('view')); In.bindCanvas(R.r.domElement);
   YD._debug = { R };
   YD.KO_WAIT = 7000;
-  const LVN = { easy: 'かんたん', normal: 'ふつう', hard: 'むずかしい' };
+  const LVN = { get easy() { return T('lv_easy'); }, get normal() { return T('lv_normal'); }, get hard() { return T('lv_hard'); } };
   // 試合の進行用の乱数（3D表示が使う乱数とは別にしておく）
   const RND = YD.rng((Math.random() * 1e9) | 0);
   const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(RND() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
@@ -18,12 +19,13 @@
   // ---------- 特技えらび ----------
   let mySkill = ls.get('yd_skill', 'dash'); if (!C.SKILLS[mySkill]) mySkill = 'dash';
   function skillUI() {
-    $('sk-row').innerHTML = Object.entries(C.SKILLS).map(([k, v]) => `<button class="sk ${k === mySkill ? 'on' : ''}" data-k="${k}"><span>${v.icon}</span>${v.name}</button>`).join('');
-    $('sk-desc').textContent = C.SKILLS[mySkill].desc + `（${C.SKILLS[mySkill].cd}秒ごと）`;
+    $('sk-row').innerHTML = Object.entries(C.SKILLS).map(([k, v]) => `<button class="sk ${k === mySkill ? 'on' : ''}" data-k="${k}"><span>${v.icon}</span>${T('sk_' + k)}</button>`).join('');
+    $('sk-desc').textContent = T('skd_' + mySkill) + T('every_s', { s: C.SKILLS[mySkill].cd });
     $('sk-row').querySelectorAll('.sk').forEach(b => b.onclick = () => { mySkill = b.dataset.k; ls.set('yd_skill', mySkill); S.ui(); skillUI(); });
     $('sk-ic').textContent = $('tsk-ic').textContent = C.SKILLS[mySkill].icon;
   }
   skillUI();
+  document.addEventListener('langchange', () => { skillUI(); $('snd-name').textContent = T(YD.mute() ? 'snd_off' : 'snd_on'); });
   let myAv = ls.get('yd_av', 'male-a'); if (!YD.AV.includes(myAv)) myAv = 'male-a';
   function avUI() {
     $('av-row').innerHTML = YD.AV.map(k => `<button class="av ${k === myAv ? 'on' : ''}" data-k="${k}"><img src="${YD.url('th/' + k + '.webp')}" alt=""></button>`).join('');
@@ -41,7 +43,7 @@
       $('in-name').value = name; $('in-code').value = code; $('btn-join').click();
       setTimeout(() => { ls.set('yd_code', keep); $('in-code').value = keep; }, 60);
     },
-    cpu: () => document.querySelector('.lv[data-lv="normal"]').click(), cpuLabel: 'CPU（ふつう）と遊びながら待つ',
+    cpu: () => document.querySelector('.lv[data-lv="normal"]').click(), cpuLabel: () => T('cpu_wait_label'),
     quit: () => toTitle(),
     colors: { main: 'var(--cta)', alt: 'var(--blue)', bg: '#f7fbff', fg: 'var(--ink)' },
   });
@@ -63,7 +65,7 @@
   const enemyOf = () => G && G.me >= 0 ? 1 - G.me : -1;
   function enterGame() { show('s-game'); document.body.classList.add('playing'); In.active = G.me >= 0; In.clear(); YD.audio(); YD.bgm.start('bgm'); R.setAvatars(G.avs || [myAv, otherAv(myAv)]); ['ov-result', 'ov-pause'].forEach(id => $(id).classList.remove('show')); idle = null; }
   function startCpu(lv) {
-    G = { mode: 'cpu', lv, me: 0, sc: [0, 0], round: 0, stats: { hit: 0, dmg: 0, taken: 0 }, thAll: 0, paused: false, stOrder: shuffle(YD.STAGE_KEYS), cpuSkill: shuffle(Object.keys(C.SKILLS))[0], names: ['あなた', 'CPU（' + LVN[lv] + '）'], avs: [myAv, otherAv(myAv)] };
+    G = { mode: 'cpu', lv, me: 0, sc: [0, 0], round: 0, stats: { hit: 0, dmg: 0, taken: 0 }, thAll: 0, paused: false, stOrder: shuffle(YD.STAGE_KEYS), cpuSkill: shuffle(Object.keys(C.SKILLS))[0], names: [T('you'), T('cpu_lv2', { lv: LVN[lv] })], avs: [myAv, otherAv(myAv)] };
     enterGame(); newRound({ seed: (RND() * 1e9) | 0, st: G.stOrder[0], round: 1 });
     lockPointer();
   }
@@ -78,9 +80,9 @@
     G.w = w; G.yaw = G.me >= 0 ? w.players[G.me].yaw : 0; G.pitch = -0.05; G.phase = 'count'; G.koT = 0; G.hs = 0; G.lastCount = 4;
     G.snaps = []; G.snapHits = []; G.rp = null; G.rpDone = false; G.spawned = {}; G.warnPair = null; G.koDone = false; G.resultPending = null;
     R.build(w); R.pivY = null; document.body.classList.remove('replay'); $('rp-tag').classList.remove('show');
-    $('h-round').textContent = 'ラウンド' + G.round; pips();
+    $('h-round').textContent = T('round_n', { n: G.round }); pips();
     const W1 = C.WIN - 1, mine = G.me >= 0 ? G.sc[G.me] : -1, his = G.me >= 0 ? G.sc[1 - G.me] : -1;
-    banner('ラウンド' + G.round, w.map.name + '　' + (G.sc[0] === W1 && G.sc[1] === W1 ? 'これで決まる！' : mine === W1 ? 'あと1本！' : his === W1 ? 'あとがない！' : ''), 1500);
+    banner(T('round_n', { n: G.round }), T('st_' + w.map.stage) + '　' + (G.sc[0] === W1 && G.sc[1] === W1 ? T('decider') : mine === W1 ? T('one_more') : his === W1 ? T('no_more') : ''), 1500);
     YD.bgm.start('bgm'); YD.bgm.mode('play');
     $('names').classList.toggle('show', G.mode === 'net'); $('names').innerHTML = `<span>${esc(G.names[0] || '')}</span><span>${esc(G.names[1] || '')}</span>`;
     document.body.classList.toggle('watch', G.me < 0);
@@ -150,7 +152,7 @@
       const playing = G.phase === 'play';
       I = { mx: playing ? raw.mx : 0, mz: playing ? raw.mz : 0, yaw: G.yaw, pitch: G.pitch, fire: raw.fire && playing, firePress: raw.firePress, jump: raw.jump && playing, jumpHeld: raw.jumpHeld, slide: raw.slide && playing, heal: raw.heal && playing, reload: raw.reload, skill: raw.skill && playing, aim: A.pt };
       if (raw.firePress && me.alive && playing && me.mag <= 0 && me.ice <= 0 && me.reload > 0) S.empty();
-      if (raw.skill && playing && me.cd > 0) { S.no(); msg('特技はあと ' + Math.ceil(me.cd) + ' 秒'); }
+      if (raw.skill && playing && me.cd > 0) { S.no(); msg(T('sk_wait', { n: Math.ceil(me.cd) })); }
       if (YD._debug.auto) { if (!G.cpu0 || G.cpu0.w0 !== w) { G.cpu0 = new YD.Cpu(G.me, YD._debug.auto, 11 + G.me); G.cpu0.w0 = w; } I = G.cpu0.input(w, dt); if (G.phase !== 'play') { I.fire = false; I.mx = I.mz = 0; I.skill = false; } if (YD._debug.smooth) { let d = I.yaw - G.yaw; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; G.yaw += d * Math.min(1, rdt * YD._debug.smooth); G.pitch += (I.pitch * 0.5 - 0.06 - G.pitch) * Math.min(1, rdt * 4); } else { G.yaw = I.yaw; G.pitch = I.pitch; } }
     }
     const ins = [null, null];
@@ -165,7 +167,7 @@
     // カウント
     if (G.phase === 'count') {
       const n = Math.ceil(-w.t); if (n !== G.lastCount && n >= 1 && n <= 3) { G.lastCount = n; banner(String(n), '', 700); S.count(); }
-      if (w.t >= 0) { G.phase = 'play'; banner('ファイト！', '', 700); S.go(); }
+      if (w.t >= 0) { G.phase = 'play'; banner(T('fight'), '', 700); S.go(); }
     }
     worldSounds(w, t0);
     events(w);
@@ -236,7 +238,7 @@
     G.rp = null; R.clearReplayBalls(); document.body.classList.remove('replay'); $('rp-tag').classList.remove('show');
     if (G.mode === 'cpu') { const g = G; setTimeout(() => { if (G !== g) return; if (Math.max(G.sc[0], G.sc[1]) >= C.WIN) result(); else newRound({ seed: (RND() * 1e9) | 0, st: G.stOrder[G.round % G.stOrder.length], round: G.round + 1 }); }, 450); }
     else if (G.resultPending) { const r = G.resultPending; G.resultPending = null; result(r); }
-    else if (G.mode === 'net') banner('つぎのラウンドへ', '', 1200);
+    else if (G.mode === 'net') banner(T('next_round'), '', 1200);
   }
   $('rp-tag').onclick = () => { if (G && G.rp) endReplay(); };
   R.r.domElement.addEventListener('pointerdown', () => { if (G && G.rp) endReplay(); });
@@ -250,9 +252,9 @@
       if (t0 < o.tm - C.MELT_WARN && t >= o.tm - C.MELT_WARN && o.pair !== G.warnPair) { G.warnPair = o.pair; S.warn(volOf(o.x, o.z)); }
       if (t0 < o.tm && t >= o.tm) S.melt(volOf(o.x, o.z) * 0.7);
     }
-    for (const pk of w.map.picks) if (t0 < pk.t - C.PICK_WARN && t >= pk.t - C.PICK_WARN && !G.spawned[pk.t]) { G.spawned[pk.t] = 1; S.spawn(); msg({ cocoa: '☕ ココアが出るよ', kairo: '🔥 カイロが出るよ', ice: '❄ 氷玉が出るよ（まん中あたり）' }[pk.kind]); }
-    if (t0 < C.ROUND_T && t >= C.ROUND_T) { banner('サドンデス', '寒さで少しずつ削れる！', 1500); S.cold(); YD.bgm.mode('hot'); }
-    if (t0 < C.ROUND_T - 10 && t >= C.ROUND_T - 10) msg('あと10秒で寒さがくる');
+    for (const pk of w.map.picks) if (t0 < pk.t - C.PICK_WARN && t >= pk.t - C.PICK_WARN && !G.spawned[pk.t]) { G.spawned[pk.t] = 1; S.spawn(); msg(T('sp_' + pk.kind)); }
+    if (t0 < C.ROUND_T && t >= C.ROUND_T) { banner(T('sudden'), T('sudden_sub'), 1500); S.cold(); YD.bgm.mode('hot'); }
+    if (t0 < C.ROUND_T - 10 && t >= C.ROUND_T - 10) msg(T('cold_soon'));
   }
   // ---------- 起きたこと ----------
   function events(w) {
@@ -271,11 +273,11 @@
           if (e.broke) { R.parts.burst(e.x, e.y, e.z, 40, { sp: 7, sz: 0.1, c: '#8fe3ff', life: 0.9 }); G.hs = 0.32; R.shake = Math.min(1.2, R.shake + 0.8); flash('brk', 120); }
           if (e.by === meS) { // 当てた
             G.stats.hit++; G.stats.dmg += e.d; hitmark(e.a > 0); S.marker(); (e.a > 0 ? S.hitArmor : S.hitFoe)(panOf(e.x, e.z));
-            pop(e.x, e.y + 0.4, e.z, e.d, e.a > 0 ? 'ar' : ''); if (e.broke) { pop(e.x, e.y + 0.9, e.z, 'パリン！', 'big'); S.broke(); }
+            pop(e.x, e.y + 0.4, e.z, e.d, e.a > 0 ? 'ar' : ''); if (e.broke) { pop(e.x, e.y + 0.9, e.z, T('crack'), 'big'); S.broke(); }
           } else if (mine) { // 当てられた
             G.stats.taken += e.d; S.hitMe(); flash('hurt', 80); R.shake = Math.min(1, R.shake + 0.5);
             if (Math.random() < 0.6) flash('splat', 250);
-            if (e.broke) { S.broke(); msg('もこもこが割れた！'); }
+            if (e.broke) { S.broke(); msg(T('ar_broke')); }
             const sx = -Math.sin(e.dir), sz = -Math.cos(e.dir), fx = -Math.sin(G.yaw), fz = -Math.cos(G.yaw), rx = Math.cos(G.yaw), rz = -Math.sin(G.yaw);
             const a = Math.atan2(sx * rx + sz * rz, sx * fx + sz * fz); $('dir').style.transform = `rotate(${a}rad)`; flash('dir', 500);
           } else { S.hitFoe(panOf(e.x, e.z)); if (e.broke) S.broke(); }
@@ -289,23 +291,23 @@
         case 'climb': if (mine) S.climb(); break;
         case 'reload': if (mine && !e.quiet) S.reload(); break;
         case 'reloaded': if (mine) S.reloaded(); break;
-        case 'pick': if (mine) { S.pick(e.kind); msg({ cocoa: '☕ ココアを拾った（回復ボタンで飲む）', kairo: '🔥 カイロを拾った（回復ボタンで使う）', ice: '❄ 氷玉！ 6発だけ強い' }[e.kind]); R.parts.burst(e.x, e.y + 0.6, e.z, 16, { sp: 3, sz: 0.06, c: '#ffe08a', g: -2 }); } else S.pickFoe(); break;
-        case 'healStart': if (mine) S.healStart(); else if (e.s === enemyOf()) { const f = w.players[e.s]; S.healFoe(volOf(f.x, f.z), panOf(f.x, f.z)); msg(e.kind === 'cocoa' ? '☕ 相手がココアを飲んでいる！ いまがチャンス' : '🔥 相手がカイロをあてている！ いまがチャンス'); } break;
+        case 'pick': if (mine) { S.pick(e.kind); msg(T('pk_' + e.kind)); R.parts.burst(e.x, e.y + 0.6, e.z, 16, { sp: 3, sz: 0.06, c: '#ffe08a', g: -2 }); } else S.pickFoe(); break;
+        case 'healStart': if (mine) S.healStart(); else if (e.s === enemyOf()) { const f = w.players[e.s]; S.healFoe(volOf(f.x, f.z), panOf(f.x, f.z)); msg(T(e.kind === 'cocoa' ? 'foe_cocoa' : 'foe_kairo')); } break;
         case 'healDone': if (mine) S.healDone(e.kind); break;
-        case 'healNo': if (mine) { S.no(); msg(me.bag.cocoa + me.bag.kairo ? 'いまは回復しなくて大丈夫' : '回復アイテムを持っていない'); } break;
+        case 'healNo': if (mine) { S.no(); msg(me.bag.cocoa + me.bag.kairo ? T('heal_no') : T('heal_none')); } break;
         case 'skill': {
           const sk = C.SKILLS[e.kind];
           if (e.kind === 'wall') { S.wall(volOf(e.o.x, e.o.z)); R.parts.burst(e.o.x, 0.3, e.o.z, 30, { sp: 4, sz: 0.1, life: 0.7 }); }
           if (e.kind === 'smoke') S.smoke(e.sm ? volOf(e.sm.x, e.sm.z) : 1);
           if (e.kind === 'decoy' && mine) S.decoy();
           if (e.kind === 'dash') { if (mine) S.dash(1); else { const p = w.players[e.s]; S.dash(volOf(p.x, p.z) * 0.6); } }
-          if (mine) msg(sk.icon + ' ' + sk.name + '！');
+          if (mine) msg(sk.icon + ' ' + T('sk_' + e.kind) + (I18N.lang === 'ja' || I18N.lang === 'zh' ? '！' : '!'));
           break;
         }
         case 'decoyHit':
           if (e.pop) { R.parts.burst(e.x, e.y, e.z, e.fade ? 20 : 40, { sp: e.fade ? 3 : 6, sz: 0.11, life: 0.9 }); if (!e.fade) S.decoyPop(volOf(e.x, e.z)); }
-          if (e.own !== meS && meS >= 0 && !e.fade) { pop(e.x, e.y + 0.6, e.z, e.pop ? 'にせもの！' : 'ん…？', 'big'); hitmark(false); S.marker(); }
-          else if (e.own === meS && e.pop && !e.fade) msg('⛄ にせ雪だるまが割られた');
+          if (e.own !== meS && meS >= 0 && !e.fade) { pop(e.x, e.y + 0.6, e.z, e.pop ? T('fake') : T('huh'), 'big'); hitmark(false); S.marker(); }
+          else if (e.own === meS && e.pop && !e.fade) msg(T('decoy_broke'));
           break;
       }
     }
@@ -317,19 +319,19 @@
     const meS = G.me, g = G;
     setTimeout(() => {
       if (G !== g) return;
-      if (meS < 0) banner((G.names[1 - loser] || '') + ' が1本', '', 1400);
-      else banner(loser !== meS ? 'ゆきだま！' : 'やられた…', loser !== meS ? '1本とった！' : '1本とられた', 1400);
+      if (meS < 0) banner(T('x_point', { name: G.names[1 - loser] || '' }), '', 1400);
+      else banner(loser !== meS ? T('snowballed') : T('got_me'), loser !== meS ? T('took') : T('lost'), 1400);
     }, 350);
   }
   function result(o) {
     G.phase = 'over'; In.active = false; In.unlock(); YD.bgm.stop();
     const sc = o ? o.sc : G.sc, meS = G.me;
-    if (meS < 0) { $('res-title').textContent = (sc[0] > sc[1] ? G.names[0] : G.names[1]) + ' の勝ち'; $('res-title').className = 'res-title win'; S.win(); }
-    else { const win = sc[meS] > sc[1 - meS]; (win ? S.win : S.lose)(); $('res-title').textContent = win ? 'かち！' : 'まけ…'; $('res-title').className = 'res-title ' + (win ? 'win' : 'lose'); }
+    if (meS < 0) { $('res-title').textContent = T('x_wins', { name: sc[0] > sc[1] ? G.names[0] : G.names[1] }); $('res-title').className = 'res-title win'; S.win(); }
+    else { const win = sc[meS] > sc[1 - meS]; (win ? S.win : S.lose)(); $('res-title').textContent = win ? T('win') : T('lose'); $('res-title').className = 'res-title ' + (win ? 'win' : 'lose'); }
     $('res-sc').textContent = sc[0] + ' - ' + sc[1];
     const th = G.thAll + (meS >= 0 && G.w ? G.w.players[meS].stats.th : 0);
-    $('res-st').innerHTML = meS < 0 ? esc((G.names[0] || '') + ' vs ' + (G.names[1] || '')) : `${G.mode === 'cpu' ? 'CPU：' + LVN[G.lv] + '<br>' : ''}当てた数 ${G.stats.hit}（命中率 ${th ? Math.round(G.stats.hit / th * 100) : 0}%）<br>あたえた雪 ${G.stats.dmg} ／ くらった雪 ${G.stats.taken}`;
-    $('btn-again').style.display = meS < 0 ? 'none' : ''; $('res-wait').textContent = meS < 0 ? 'ふたりが「もう一回」をおすと、次の試合を観戦できます' : '';
+    $('res-st').innerHTML = meS < 0 ? esc((G.names[0] || '') + ' vs ' + (G.names[1] || '')) : (G.mode === 'cpu' ? T('res_cpu', { lv: LVN[G.lv] }) + '<br>' : '') + T('res_stats', { h: G.stats.hit, r: th ? Math.round(G.stats.hit / th * 100) : 0, d: G.stats.dmg, t: G.stats.taken });
+    $('btn-again').style.display = meS < 0 ? 'none' : ''; $('res-wait').textContent = meS < 0 ? T('watch_next') : '';
     $('ov-result').classList.add('show');
   }
 
@@ -341,9 +343,9 @@
   function hud(w, me) {
     const t = Math.max(0, w.t);
     tog($('tbox'), 'cold', w.t > C.ROUND_T);
-    txt('h-time', w.t < 0 ? '0' : w.t > C.ROUND_T ? '寒い！' : String(Math.ceil(C.ROUND_T - t)));
+    txt('h-time', w.t < 0 ? '0' : w.t > C.ROUND_T ? T('cold_t') : String(Math.ceil(C.ROUND_T - t)));
     let next = null; for (const o of w.map.obs) if (o.tm != null && !o.dyn && o.tm > w.t && (!next || o.tm < next.tm)) next = o;
-    const melt = next && w.t >= 0 && next.tm - w.t < 6; if (melt) txt('h-melt', '❄ かべが溶ける ' + Math.ceil(next.tm - w.t)); tog($('h-melt'), 'show', melt);
+    const melt = next && w.t >= 0 && next.tm - w.t < 6; if (melt) txt('h-melt', T('melt', { n: Math.ceil(next.tm - w.t) })); tog($('h-melt'), 'show', melt);
     const cold = w.t > C.ROUND_T ? '0.8' : '0'; if (_c.cold !== cold) { _c.cold = cold; $('cold').style.opacity = cold; }
     if (!me) return;
     wid('b-hp', me.hp / C.HP * 100); wid('b-ar', me.ar / C.ARMOR * 100); txt('v-hp', Math.ceil(me.hp)); txt('v-ar', Math.ceil(me.ar));
@@ -353,7 +355,7 @@
     const hc = Math.round(me.cd / sk.cd * 20) * 5 + '%'; if (_c.tsk !== hc) { _c.tsk = hc; $('tsk-cd').style.height = hc; }
     const bs = ammoEl.children; for (let i = 0; i < bs.length; i++) { const c = me.ice > 0 ? (i < me.ice ? 'ice' : 'off') : (i < me.mag && me.reload <= 0 ? '' : 'off'); if (bs[i].className !== c) bs[i].className = c; }
     const rl = $('rl'); if (me.reload > 0) { const u = Math.round((1 - me.reload / C.RELOAD) * 24) / 24; tog(rl, 'on', true); if (_c.rl !== u) { _c.rl = u; rl.style.background = `conic-gradient(#fff ${u * 360}deg, rgba(255,255,255,.15) 0)`; rl.style.webkitMask = rl.style.mask = 'radial-gradient(circle, transparent 18px, #000 19px)'; } } else tog(rl, 'on', false);
-    const hb = $('healbar'); tog(hb, 'show', !!me.heal); if (me.heal) { txt('heal-name', me.heal.k === 'cocoa' ? '☕ ココアを飲んでいる…（受ける雪 2割へる）' : '🔥 カイロをあてている…（受ける雪 2割へる）'); wid('heal-p', me.heal.t / me.heal.T * 100); }
+    const hb = $('healbar'); tog(hb, 'show', !!me.heal); if (me.heal) { txt('heal-name', T(me.heal.k === 'cocoa' ? 'heal_cocoa' : 'heal_kairo')); wid('heal-p', me.heal.t / me.heal.T * 100); }
     const low = me.hp <= C.HP * 0.3 && me.alive; tog($('hurt'), 'low', low);
     if (low) $('hurt').style.opacity = (0.35 + 0.2 * Math.sin(performance.now() / 200)).toFixed(2); else if (_c.low) $('hurt').style.opacity = 0;
     _c.low = low;
@@ -423,9 +425,9 @@
     onPeople(pp) {
       G0.names = pp.names; $('on-n0').textContent = pp.names[0] || '…'; $('on-n1').textContent = pp.names[1] || '…';
       if (G && G.mode === 'net') G.names = pp.names;
-      $('on-st').textContent = pp.watching ? '観戦します。試合が始まるのを待っています…' : (pp.names[0] && pp.names[1] ? 'まもなく始まります！' : '相手を待っています…（同じあいことばを入れてもらってね）');
+      $('on-st').textContent = pp.watching ? T('on_watch') : (pp.names[0] && pp.names[1] ? T('on_soon') : T('on_wait'));
     },
-    onWatchers(n) { $('on-w').textContent = n ? '観戦 ' + n + '人' : ''; },
+    onWatchers(n) { $('on-w').textContent = n ? T('n_watch', { n }) : ''; },
     onRound(info) {
       if (!G || G.mode !== 'net' || G.m !== info.m) {
         G = { mode: 'net', me: info.watching ? -1 : info.slot, m: info.m, sc: [0, 0], round: 0, stats: { hit: 0, dmg: 0, taken: 0 }, thAll: 0, names: G0.names.slice(), avs: info.avs || ['male-a', 'female-b'] };
@@ -462,19 +464,19 @@
       if (QM.isRandom() && room && room.slot >= 0) {
         if (G && G.mode === 'net' && G.phase !== 'over') {
           G.phase = 'over'; In.active = false; In.unlock(); YD.bgm.stop(); $('ov-pause').classList.remove('show');
-          S.win(); $('res-title').textContent = 'かち！'; $('res-title').className = 'res-title win';
-          $('res-sc').textContent = G.sc[0] + ' - ' + G.sc[1]; $('res-st').textContent = '相手が抜けたので、あなたの勝ち！';
+          S.win(); $('res-title').textContent = T('win'); $('res-title').className = 'res-title win';
+          $('res-sc').textContent = G.sc[0] + ' - ' + G.sc[1]; $('res-st').textContent = T('left_win');
           $('btn-again').style.display = 'none'; $('res-wait').textContent = ''; $('ov-result').classList.add('show');
-        } else { $('res-wait').textContent = '相手が部屋から出ました'; $('btn-again').style.display = 'none'; }
+        } else { $('res-wait').textContent = T('room_left'); $('btn-again').style.display = 'none'; }
         return;
       }
-      msg(G && G.me < 0 ? 'プレイヤーが部屋から出ました' : '相手が部屋から出ました');
+      msg(G && G.me < 0 ? T('player_left') : T('room_left'));
       if (G && G.mode === 'net') { G = null; document.body.classList.remove('playing', 'replay', 'watch'); ['ov-result', 'ov-pause'].forEach(id => $(id).classList.remove('show')); In.active = false; In.unlock(); YD.bgm.stop(); show('s-online'); $('on-form').style.display = 'none'; $('on-wait').style.display = ''; }
       if (room && room.slot >= 0) room.rematch();
-      $('on-st').textContent = room && room.watching ? '観戦します。試合が始まるのを待っています…' : '相手を待っています…（同じあいことばを入れてもらってね）';
+      $('on-st').textContent = room && room.watching ? T('on_watch') : T('on_wait');
     }
   };
-  function loadScript(src) { return new Promise((res, rej) => { const el = document.createElement('script'); el.src = src; el.onload = res; el.onerror = () => rej(new Error('通信できませんでした。電波のよいところでもう一度ためしてください')); document.head.appendChild(el); }); }
+  function loadScript(src) { return new Promise((res, rej) => { const el = document.createElement('script'); el.src = src; el.onload = res; el.onerror = () => rej(new Error(T('err_net'))); document.head.appendChild(el); }); }
   async function getDb() {
     if (YD._db) return YD._db;
     const v = '10.12.2';
@@ -486,15 +488,15 @@
   $('btn-online').onclick = () => { S.ui(); show('s-online'); $('on-form').style.display = ''; $('on-wait').style.display = 'none'; };
   $('btn-join').onclick = async () => {
     const name = $('in-name').value.trim(), code = YD.cleanCode($('in-code').value);
-    if (!code) { msg('あいことばを入れてください'); return; }
+    if (!code) { msg(T('err_code_short')); return; }
     ls.set('yd_name', name); ls.set('yd_code', $('in-code').value);
     $('btn-join').disabled = true; YD.audio();
     try {
       const db = await getDb(); if (room) room.leave();
       room = new YD.Room(db, code, name, roomCb, myAv); const r = await room.join();
       $('on-form').style.display = 'none'; $('on-wait').style.display = '';
-      if (r.watching) $('on-st').textContent = '観戦します。試合が始まるのを待っています…';
-    } catch (e) { msg(e.message || '入れませんでした'); room = null; }
+      if (r.watching) $('on-st').textContent = T('on_watch');
+    } catch (e) { msg(e.message || T('qm_nojoin')); room = null; }
     $('btn-join').disabled = false;
   };
   $('btn-on-back').onclick = () => { QM.ended(); if (room) { room.leave(); room = null; } show('s-title'); };
@@ -503,15 +505,15 @@
   document.querySelectorAll('.lv').forEach(b => b.onclick = () => { S.ui(); if (room) { room.leave(); room = null; } startCpu(b.dataset.lv); });
   $('btn-howto').onclick = () => $('ov-howto').classList.add('show');
   $('btn-howto-close').onclick = () => $('ov-howto').classList.remove('show');
-  $('snd-name').textContent = YD.mute() ? 'なし' : 'あり';
-  $('btn-snd').onclick = () => { const m = !YD.mute(); YD.mute(m); $('snd-name').textContent = m ? 'なし' : 'あり'; };
+  $('snd-name').textContent = T(YD.mute() ? 'snd_off' : 'snd_on');
+  $('btn-snd').onclick = () => { const m = !YD.mute(); YD.mute(m); $('snd-name').textContent = T(m ? 'snd_off' : 'snd_on'); };
   $('in-sens').value = In.sens; $('sens-v').textContent = In.sens.toFixed(1);
   $('in-sens').oninput = e => { In.setSens(parseFloat(e.target.value)); $('sens-v').textContent = In.sens.toFixed(1); };
   function pause(on) {
     if (!G || G.phase === 'over') return;
     if (G.mode === 'cpu') G.paused = on;
     $('ov-pause').classList.toggle('show', on); In.clear();
-    $('btn-quit').textContent = G.mode === 'net' ? '部屋を出る' : 'タイトルへ';
+    $('btn-quit').textContent = G.mode === 'net' ? T('leave_room') : T('to_title');
     if (!on) lockPointer();
   }
   $('btn-pause').onclick = () => pause(true);
@@ -520,7 +522,7 @@
   function toTitle() { QM.ended(); if (room) { room.leave(); room = null; } G = null; In.active = false; In.unlock(); YD.bgm.start('title'); document.body.classList.remove('playing', 'replay', 'watch'); ['ov-pause', 'ov-result'].forEach(id => $(id).classList.remove('show')); idle = null; show('s-title'); }
   $('btn-quit').onclick = toTitle; $('btn-title').onclick = toTitle;
   $('btn-again').onclick = () => {
-    if (G && G.mode === 'net' && room) { room.rematch(); $('res-wait').textContent = '相手を待っています…'; $('btn-again').style.display = 'none'; return; }
+    if (G && G.mode === 'net' && room) { room.rematch(); $('res-wait').textContent = T('waiting_opp'); $('btn-again').style.display = 'none'; return; }
     const lv = G.lv; $('ov-result').classList.remove('show'); startCpu(lv);
   };
   addEventListener('touchstart', () => { if (In.kind !== 'touch') { In.kind = 'touch'; document.body.classList.add('touch'); } }, { passive: true });

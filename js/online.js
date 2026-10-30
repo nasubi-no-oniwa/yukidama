@@ -19,7 +19,7 @@
   class Room {
     constructor(db, code, name, cb, av) {
       this.av = YD.AV && YD.AV.includes(av) ? av : 'male-a';
-      this.db = db; this.code = clean(code); this.name = (window.QM ? QM.ng(name) : String(name || '').trim().slice(0, 8)) || 'ななし'; this.cb = cb || {};
+      this.db = db; this.code = clean(code); this.name = (window.QM ? QM.ng(name) : String(name || '').trim().slice(0, 8)) || (window.I18N ? I18N.t('noname') : 'ななし'); this.cb = cb || {};
       this.id = uid(); this.slot = -1; this.watching = false; this.players = {}; this.ready = {}; this.game = null; this.subs = []; this.rs = []; this.offset = 0; this.left = false;
       this.root = db.ref('yukidama/' + this.code);
     }
@@ -27,7 +27,7 @@
     now() { return Date.now() + this.offset; }
     on(ref, ev, fn, list) { ref.on(ev, fn); (list || this.subs).push([ref, ev, fn]); }
     async join() {
-      if (!this.code) throw new Error('あいことばを入れてください');
+      if (!this.code) throw new Error(window.I18N ? I18N.t('err_code_short') : 'あいことばを入れてください');
       this.on(this.db.ref('.info/serverTimeOffset'), 'value', s => { this.offset = s.val() || 0; });
       for (const s of [0, 1]) {
         const res = await this.root.child('players/' + s).transaction(cur => (cur ? undefined : { id: this.id, name: this.name, av: this.av }));
@@ -35,7 +35,7 @@
       }
       if (this.slot < 0) {
         const w = (await this.root.child('watchers').once('value')).val() || {};
-        if (Object.keys(w).length >= 10) throw new Error('この部屋は観戦の人でいっぱいです（10人まで）');
+        if (Object.keys(w).length >= 10) throw new Error(window.I18N ? I18N.t('room_full') : 'この部屋は観戦の人でいっぱいです（10人まで）');
         this.watching = true; const me = this.root.child('watchers/' + this.id); await me.set({ name: this.name }); me.onDisconnect().remove();
       } else {
         for (const k of ['players/', 'ready/', 's/']) this.root.child(k + this.slot).onDisconnect().remove();

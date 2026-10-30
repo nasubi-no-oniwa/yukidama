@@ -177,3 +177,26 @@ body:not(.touch) .me { bottom: max(36px, env(safe-area-inset-bottom)); }
 html, body { overscroll-behavior: none; }
 #s-title { overflow: hidden; }
 .qm-cnt { color: #1d3557; text-shadow: 0 1px 2px #fff, 0 0 6px #fff; }
+
+/* ことばの切りかえ・お庭へ */
+.tfoot { margin-top: 12px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.home-link { color: #fff; font-size: 13px; text-shadow: 0 2px 0 rgba(29,53,87,.6); }
+.langs{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
+.langs button{font:800 13px 'M PLUS Rounded 1c',sans-serif;background:rgba(255,255,255,.6);color:var(--ink);border:2px solid rgba(255,255,255,.85);border-radius:999px;padding:3px 12px;cursor:pointer}
+.langs button[aria-pressed="true"]{background:var(--ink);color:#fff;border-color:var(--ink)}
+@media (max-height: 460px) { .tfoot { margin-top: 8px; gap: 6px; flex-direction: row; flex-wrap: wrap; justify-content: center; } .langs button { padding: 2px 10px; font-size: 12px; } }
+/* 韓国語：Dela Gothic One にハングルがないので Do Hyeon */
+html[data-lang="ko"] .logo, html[data-lang="ko"] .banner, html[data-lang="ko"] .pop, html[data-lang="ko"] .card h2, html[data-lang="ko"] .res-title, html[data-lang="ko"] .vs b { font-family: 'Do Hyeon', 'M PLUS Rounded 1c', sans-serif; font-weight: 400; }
+.bars span b { font-weight: inherit; }
+/* 縦長・横長どちらでも上が切れずにスクロールできるように */
+.title-box { align-content: safe center; }
+@media (max-aspect-ratio: 1/1) { .title-box { align-content: safe center; } }
+@media (max-height: 460px) {
+  .lv-row { flex-wrap: nowrap; gap: 8px; }
+  .btn.lv { min-width: 0; flex: 1 1 0; padding: 9px 6px; }
+  .tfoot { margin-top: 6px; }
+}
+/* 英語の題字は長いので小さく */
+.tcol { container-type: inline-size; }
+html[data-lang="en"] .logo { font-size: min(7.9cqw, 64px); }
+html[data-lang="en"] .btn.lv { letter-spacing: 0; }
